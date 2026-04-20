@@ -54,6 +54,18 @@ def criar_tabelas():
     # ITENS
     c.execute("""
     CREATE TABLE IF NOT EXISTS itens (
+    id SERIAL PRIMARY KEY,
+    os_id INTEGER REFERENCES os(id),
+    equipamento TEXT,
+    defeito TEXT,
+    garantia INTEGER DEFAULT 0,
+    solucao TEXT,
+    status TEXT DEFAULT 'aguardando',
+    tipo_reparo_id INTEGER REFERENCES tipos_reparo(id),
+    valor_cobrado REAL DEFAULT 0.0,
+    mac TEXT
+)
+    CREATE TABLE IF NOT EXISTS itens (
         id SERIAL PRIMARY KEY,
         os_id INTEGER REFERENCES os(id),
         equipamento TEXT,
@@ -104,6 +116,7 @@ def criar_tabelas():
             ('solucao', 'TEXT'),
             ('tipo_reparo_id', 'INTEGER'),
             ('valor_cobrado', 'REAL DEFAULT 0.0'),
+            ('mac', 'TEXT'),
         ],
         'os': [
             ('status', "TEXT DEFAULT 'aberta'"),
