@@ -27,6 +27,15 @@ def _fmt_brl(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _get(row, key, default="—"):
+    """Acessa dicionário ou objeto com segurança."""
+    try:
+        val = row[key] if hasattr(row, "keys") else row[key]
+        return val if val is not None else default
+    except Exception:
+        return default
+
+
 def _secao_equipamentos(story, titulo, itens_grupo, estilo_normal, estilo_bold, estilo_cabec, secao_titulo, cor_titulo, W):
     if not itens_grupo:
         return
@@ -47,22 +56,24 @@ def _secao_equipamentos(story, titulo, itens_grupo, estilo_normal, estilo_bold, 
     rows = [cab]
 
     for item in itens_grupo:
-        equipamento = item[0] or "—"
-        defeito     = item[1] or "—"
-        solucao     = item[2] or "—"
-        garantia    = item[4]
-        tipo_nome   = item[5] or "—"
-        valor       = item[6] or 0.0
+        equipamento = _get(item, "equipamento")
+        defeito     = _get(item, "defeito")
+        solucao     = _get(item, "solucao")
+        garantia    = _get(item, "garantia", 0)
+        tipo_nome   = _get(item, "tipo_nome")
+        valor       = _get(item, "valor_cobrado", 0.0)
+        if valor == "—":
+            valor = 0.0
 
         eh_garantia = (garantia == 1 or garantia == "1")
-        valor_txt = "Garantia" if eh_garantia else _fmt_brl(valor)
+        valor_txt = "Garantia" if eh_garantia else _fmt_brl(float(valor))
         cor_val = COR_VERDE if eh_garantia else COR_TEXTO
 
         rows.append([
-            Paragraph(equipamento, estilo_normal),
-            Paragraph(defeito,     estilo_normal),
-            Paragraph(solucao,     estilo_normal),
-            Paragraph(tipo_nome,   estilo_normal),
+            Paragraph(str(equipamento), estilo_normal),
+            Paragraph(str(defeito),     estilo_normal),
+            Paragraph(str(solucao),     estilo_normal),
+            Paragraph(str(tipo_nome),   estilo_normal),
             Paragraph("🛡️ Sim" if eh_garantia else "Não", estilo_normal),
             Paragraph(f'<font color="#{("16a34a" if eh_garantia else "1f2937")}">{valor_txt}</font>',
                       ParagraphStyle("val", fontName="Helvetica-Bold", fontSize=9, textColor=cor_val)),
@@ -116,8 +127,9 @@ def gerar_pdf_os(os_data, itens, parciais=None):
     story.append(HRFlowable(width=W, color=COR_PRIMARIA, thickness=2, spaceAfter=6))
 
     # ── FAIXA OS ───────────────────────────────────────────────────
-    os_id       = os_data[0]
-    os_data_str = os_data[1] or datetime.now().strftime("%Y-%m-%d %H:%M")
+    os_id       = _get(os_data, "id", "?")
+    os_data_str = _get(os_data, "data", datetime.now().strftime("%Y-%m-%d %H:%M"))
+
     faixa = Table([[
         Paragraph(f"ORDEM DE SERVIÇO  #{os_id}", ParagraphStyle("os", fontName="Helvetica-Bold", fontSize=13, textColor=colors.white)),
         Paragraph(f"Emitida em: {os_data_str}", ParagraphStyle("dt", fontName="Helvetica", fontSize=8, textColor=colors.white, alignment=TA_RIGHT))
@@ -134,16 +146,22 @@ def gerar_pdf_os(os_data, itens, parciais=None):
     story.append(Spacer(1, 8))
 
     # ── DADOS DO CLIENTE ───────────────────────────────────────────
-    nome_cli  = os_data[2] or "—"
-    tel_cli   = os_data[3] or "—"
-    cpf_cli   = os_data[4] or "—"
-    email_cli = os_data[5] or "—"
-    rua       = os_data[6] or ""
-    numero    = os_data[7] or ""
-    bairro    = os_data[8] or ""
-    cidade    = os_data[9] or ""
-    cep       = os_data[10] or ""
-    endereco  = f"{rua}{', '+numero if numero else ''}{', '+bairro if bairro else ''}"
+    nome_cli  = _get(os_data, "nome")
+    tel_cli   = _get(os_data, "telefone")
+    cpf_cli   = _get(os_data, "cpf_cnpj")
+    email_cli = _get(os_data, "email")
+    rua       = _get(os_data, "rua", "")
+    numero    = _get(os_data, "numero", "")
+    bairro    = _get(os_data, "bairro", "")
+    cidade    = _get(os_data, "cidade", "")
+    cep       = _get(os_data, "cep", "")
+    if rua == "—": rua = ""
+    if numero == "—": numero = ""
+    if bairro == "—": bairro = ""
+    if cidade == "—": cidade = ""
+    if cep == "—": cep = ""
+
+    endereco   = f"{rua}{', '+numero if numero else ''}{', '+bairro if bairro else ''}"
     cidade_cep = f"{cidade}{' — CEP '+cep if cep else ''}"
 
     story.append(Paragraph("DADOS DO CLIENTE", secao_titulo))
@@ -170,23 +188,25 @@ def gerar_pdf_os(os_data, itens, parciais=None):
 
     # ── EQUIPAMENTOS POR GRUPO ─────────────────────────────────────
     grupos = {
-        "reparado":            [],
+        "reparado":              [],
         "aguardando_componente": [],
-        "nao_passivel":        [],
-        "aguardando":          [],
+        "nao_passivel":          [],
+        "aguardando":            [],
     }
     for item in itens:
-        status = item[3] or "aguardando"
+        status = _get(item, "status", "aguardando")
+        if status == "—":
+            status = "aguardando"
         if status in grupos:
             grupos[status].append(item)
         else:
             grupos["aguardando"].append(item)
 
     config_grupos = [
-        ("reparado",              "✅ REPARADOS",                    COR_VERDE),
-        ("aguardando_componente", "⏳ AGUARDANDO COMPONENTE",        COR_ROXO),
-        ("nao_passivel",          "❌ NÃO PASSÍVEL DE REPARO",       COR_VERMELHO),
-        ("aguardando",            "🔧 AGUARDANDO REPARO",            COR_LARANJA),
+        ("reparado",              "✅ REPARADOS",                 COR_VERDE),
+        ("aguardando_componente", "⏳ AGUARDANDO COMPONENTE",     COR_ROXO),
+        ("nao_passivel",          "❌ NÃO PASSÍVEL DE REPARO",    COR_VERMELHO),
+        ("aguardando",            "🔧 AGUARDANDO REPARO",         COR_LARANJA),
     ]
 
     story.append(Paragraph("EQUIPAMENTOS / SERVIÇOS", secao_titulo))
@@ -204,19 +224,23 @@ def gerar_pdf_os(os_data, itens, parciais=None):
     story.append(Spacer(1, 10))
 
     # ── TOTAIS ─────────────────────────────────────────────────────
-    total_geral = sum(
-        (item[6] or 0.0)
-        for item in itens
-        if not (item[4] == 1 or item[4] == "1")
-    )
+    total_geral = 0.0
+    for item in itens:
+        garantia = _get(item, "garantia", 0)
+        if not (garantia == 1 or garantia == "1"):
+            val = _get(item, "valor_cobrado", 0.0)
+            try:
+                total_geral += float(val) if val != "—" else 0.0
+            except Exception:
+                pass
 
     total_parciais_pagas = 0.0
     total_parciais_nao_pagas = 0.0
     if parciais:
         for p in parciais:
             try:
-                val  = float(p["valor_cobrado"] if hasattr(p, "keys") else p[3])
-                pago = p["pago"] if hasattr(p, "keys") else p[4]
+                val  = float(_get(p, "valor_cobrado", 0.0))
+                pago = _get(p, "pago", 0)
                 if pago:
                     total_parciais_pagas += val
                 else:
@@ -224,7 +248,6 @@ def gerar_pdf_os(os_data, itens, parciais=None):
             except Exception:
                 pass
 
-    # Só subtrai do total o que foi PAGO. Parcial entregue mas não paga ainda consta no valor a cobrar.
     total_a_cobrar = max(0.0, total_geral - total_parciais_pagas)
 
     total_rows = [[
@@ -269,18 +292,18 @@ def gerar_pdf_os(os_data, itens, parciais=None):
         parc_rows = [parc_cab]
         for p in parciais:
             try:
-                data_p   = p["data"]       if hasattr(p, "keys") else p[2]
-                val_p    = float(p["valor_cobrado"] if hasattr(p, "keys") else p[3])
-                pago_p   = p["pago"]       if hasattr(p, "keys") else p[4]
-                desc_p   = p["descricao"]  if hasattr(p, "keys") else p[5]
+                data_p = _get(p, "data")
+                val_p  = float(_get(p, "valor_cobrado", 0.0))
+                pago_p = _get(p, "pago", 0)
+                desc_p = _get(p, "descricao")
             except Exception:
                 continue
             situacao = "✅ Pago" if pago_p else "⚠️ Pendente"
             cor_sit  = "#16a34a" if pago_p else "#f59e0b"
             parc_rows.append([
-                Paragraph(str(data_p or "—"), estilo_normal),
-                Paragraph(str(desc_p or "—"), estilo_normal),
-                Paragraph(_fmt_brl(val_p),    ParagraphStyle("pv", fontName="Helvetica-Bold", fontSize=9, textColor=COR_TEXTO)),
+                Paragraph(str(data_p), estilo_normal),
+                Paragraph(str(desc_p), estilo_normal),
+                Paragraph(_fmt_brl(val_p), ParagraphStyle("pv", fontName="Helvetica-Bold", fontSize=9, textColor=COR_TEXTO)),
                 Paragraph(f'<font color="{cor_sit}">{situacao}</font>', estilo_normal),
             ])
         tp = Table(parc_rows, colWidths=[32*mm, 80*mm, 28*mm, 30*mm])
