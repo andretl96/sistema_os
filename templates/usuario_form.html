@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{% if usuario %}Editar Usuário{% else %}Novo Usuário{% endif %}{% endblock %}
+{% block page_title %}{% if usuario %}✏️ Editar Usuário{% else %}➕ Novo Usuário{% endif %}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/usuarios" class="btn btn-secondary" style="font-size:13px;">← Voltar</a>
+{% endblock %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+  <div style="padding:12px 16px; border-radius:8px; margin-bottom:16px;
+       background:#dc262622; border:1px solid #ef444455; color:#ef4444;">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div class="card" style="max-width:480px;">
+  <form method="POST" style="display:flex; flex-direction:column; gap:18px;">
+
+    <div>
+      <label class="form-label">Nome de usuário</label>
+      <input type="text" name="username" class="form-input" required autocomplete="off"
+             value="{{ usuario['username'] if usuario else '' }}"
+             placeholder="Ex: arthur">
+    </div>
+
+    <div>
+      <label class="form-label">
+        Senha
+        {% if usuario %}<span style="color:#666; font-weight:normal;"> — deixe em branco para não alterar</span>{% endif %}
+      </label>
+      <input type="password" name="senha" class="form-input" autocomplete="new-password"
+             {% if not usuario %}required{% endif %}
+             placeholder="{% if usuario %}Nova senha (opcional){% else %}Senha{% endif %}">
+    </div>
+
+    <div>
+      <label class="form-label">Nível de acesso</label>
+      <div style="display:flex; gap:10px; margin-top:4px;">
+        <label style="display:flex; align-items:center; gap:8px; padding:12px 18px; border:1px solid #333; border-radius:8px; cursor:pointer; flex:1;"
+               id="opt-aux">
+          <input type="radio" name="tipo" value="aux"
+                 {% if not usuario or usuario['tipo'] == 'aux' %}checked{% endif %}
+                 onchange="updateOpts()">
+          <div>
+            <div style="font-weight:600; color:#60a5fa;">👤 Auxiliar</div>
+            <div style="font-size:11px; color:#666; margin-top:2px;">Cadastros e reparos — sem valores</div>
+          </div>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; padding:12px 18px; border:1px solid #333; border-radius:8px; cursor:pointer; flex:1;"
+               id="opt-admin">
+          <input type="radio" name="tipo" value="admin"
+                 {% if usuario and usuario['tipo'] == 'admin' %}checked{% endif %}
+                 onchange="updateOpts()">
+          <div>
+            <div style="font-weight:600; color:#f59e0b;">⭐ Admin</div>
+            <div style="font-size:11px; color:#666; margin-top:2px;">Acesso total ao sistema</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div style="margin-top:4px; padding:12px 14px; background:#1a1a1a; border-radius:8px; font-size:12px; color:#888;" id="info-nivel">
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:4px;">
+      <button type="submit" class="btn">
+        {% if usuario %}💾 Salvar Alterações{% else %}✅ Criar Usuário{% endif %}
+      </button>
+      <a href="/usuarios" class="btn btn-secondary">Cancelar</a>
+    </div>
+
+  </form>
+</div>
+
+<script>
+const infos = {
+  aux: "✅ Pode: cadastrar clientes, criar OS, adicionar equipamentos, registrar status de reparo.\n❌ Não pode: ver valores cobrados, fechar OS, acessar estoque, tipos de reparo, usuários ou PDF.",
+  admin: "✅ Acesso completo: valores, fechamento de OS, entrega parcial, estoque, tipos de reparo e gestão de usuários."
+};
+function updateOpts() {
+  const sel = document.querySelector('input[name="tipo"]:checked').value;
+  document.getElementById('info-nivel').textContent = infos[sel];
+  document.getElementById('opt-aux').style.borderColor   = sel === 'aux'   ? '#60a5fa' : '#333';
+  document.getElementById('opt-admin').style.borderColor = sel === 'admin' ? '#f59e0b' : '#333';
+}
+updateOpts();
+</script>
+
+<style>
+.form-label { display:block; font-size:12px; color:#aaa; margin-bottom:5px; font-weight:500; }
+.form-input  { width:100%; padding:10px 14px; background:#111; border:1px solid #333; border-radius:8px; color:#fff; font-size:13px; box-sizing:border-box; }
+.form-input:focus { outline:none; border-color:#f59e0b; }
+</style>
+{% endblock %}

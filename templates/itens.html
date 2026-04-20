@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Itens da OS{% endblock %}
+{% block page_title %}Itens da OS #{{ os_id }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/lista_os" class="btn btn-secondary" style="font-size:13px;">← Voltar às OS</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- FORMULÁRIO PARA ADICIONAR ITEM -->
+{% if os_status == 'aberta' %}
+<div class="card" style="margin-bottom: 24px;">
+    <h3 style="margin-top:0;">Adicionar Equipamento</h3>
+    <form method="POST" style="display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <div style="flex:2; min-width:180px;">
+                <label style="font-size:13px; color:#aaa;">Equipamento</label>
+                <input type="text" name="equipamento" placeholder="Ex: Notebook Dell" required style="width:100%; box-sizing:border-box; background:#111; border:1px solid #333; border-radius:8px; color:#fff; padding:10px 14px;">
+            </div>
+            <div style="flex:2; min-width:180px;">
+                <label style="font-size:13px; color:#aaa;">Defeito Relatado</label>
+                <input type="text" name="defeito" placeholder="Ex: Não liga" required style="width:100%; box-sizing:border-box; background:#111; border:1px solid #333; border-radius:8px; color:#fff; padding:10px 14px;">
+            </div>
+            <div style="flex:1; min-width:130px;">
+                <label style="font-size:13px; color:#aaa;">Garantia?</label>
+                <select name="garantia" style="width:100%; box-sizing:border-box; background:#111; border:1px solid #333; border-radius:8px; color:#fff; padding:10px 14px;">
+                    <option value="">Não</option>
+                    <option value="sim">Sim — em garantia</option>
+                </select>
+            </div>
+        </div>
+        <div>
+            <button type="submit" class="btn">➕ Adicionar Item</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<!-- AÇÕES DA OS -->
+<div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+    {% if os_status == 'aberta' %}
+    {% if is_admin %}
+    <a href="/fechar_parcial/{{ os_id }}" class="btn btn-secondary" style="font-size:13px;">📦 Entrega Parcial</a>
+    <a href="/fechar_os_final/{{ os_id }}" class="btn" style="font-size:13px; background:#22c55e;">✅ Fechar OS</a>
+    {% endif %}
+    {% else %}
+    <span style="color:#22c55e; font-weight:700; font-size:14px;">✅ OS Fechada</span>
+    {% endif %}
+    {% if is_admin %}<a href="/gerar_pdf_os/{{ os_id }}" class="btn btn-secondary" style="font-size:13px;">📄 Gerar PDF</a>{% endif %}
+</div>
+
+<!-- LISTA DE ITENS -->
+{% set tem_reparado = [] %}
+{% set tem_aguardando_comp = [] %}
+{% set tem_nao_passivel = [] %}
+{% set tem_aguardando = [] %}
+
+{% for item in itens %}
+    {% if item['status'] == 'reparado' %}{% set _ = tem_reparado.append(item) %}
+    {% elif item['status'] == 'aguardando_componente' %}{% set _ = tem_aguardando_comp.append(item) %}
+    {% elif item['status'] == 'nao_passivel' %}{% set _ = tem_nao_passivel.append(item) %}
+    {% else %}{% set _ = tem_aguardando.append(item) %}
+    {% endif %}
+{% endfor %}
+
+{% macro card_item(item) %}
+<div class="card" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:12px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:200px;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <strong>{{ item['equipamento'] }}</strong>
+            {% if item['garantia'] == 1 or item['garantia'] == '1' %}
+            <span style="background:#16a34a22; color:#22c55e; padding:1px 8px; border-radius:20px; font-size:11px; font-weight:700;">🛡️ Garantia</span>
+            {% endif %}
+        </div>
+        <span style="color:#888;">{{ item['defeito'] }}</span>
+        {% if item['solucao'] %}
+        <br><small style="color:#64748b;">→ {{ item['solucao'] }}</small>
+        {% endif %}
+        {% if is_admin %}
+        {% if item['valor_cobrado'] and item['valor_cobrado'] > 0 and (item['garantia'] != 1 and item['garantia'] != '1') %}
+        <br><small style="color:#f59e0b; font-weight:700;">R$ {{ "%.2f"|format(item['valor_cobrado']) }}</small>
+        {% elif item['garantia'] == 1 or item['garantia'] == '1' %}
+        <br><small style="color:#22c55e;">Sem cobrança (garantia)</small>
+        {% endif %}
+        {% endif %}
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
+        {% if os_status == 'aberta' %}
+        <a href="/reparo/{{ item['id'] }}" class="btn" style="font-size:12px;">⚡ Atualizar</a>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{% if tem_aguardando %}
+<h3 style="color:#f59e0b; font-size:14px; margin:16px 0 8px;">🔧 Aguardando Reparo ({{ tem_aguardando|length }})</h3>
+{% for item in tem_aguardando %}{{ card_item(item) }}{% endfor %}
+{% endif %}
+
+{% if tem_aguardando_comp %}
+<h3 style="color:#a855f7; font-size:14px; margin:16px 0 8px;">⏳ Aguardando Componente ({{ tem_aguardando_comp|length }})</h3>
+{% for item in tem_aguardando_comp %}{{ card_item(item) }}{% endfor %}
+{% endif %}
+
+{% if tem_reparado %}
+<h3 style="color:#22c55e; font-size:14px; margin:16px 0 8px;">✅ Reparados ({{ tem_reparado|length }})</h3>
+{% for item in tem_reparado %}{{ card_item(item) }}{% endfor %}
+{% endif %}
+
+{% if tem_nao_passivel %}
+<h3 style="color:#ef4444; font-size:14px; margin:16px 0 8px;">❌ Não Passível de Reparo ({{ tem_nao_passivel|length }})</h3>
+{% for item in tem_nao_passivel %}{{ card_item(item) }}{% endfor %}
+{% endif %}
+
+{% if not itens %}
+<p style="color:#666;">Nenhum item adicionado ainda. Use o formulário acima.</p>
+{% endif %}
+
+{% endblock %}
