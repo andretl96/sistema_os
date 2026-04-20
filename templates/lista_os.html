@@ -22,8 +22,8 @@
     <tbody>
     {% for os in ordens %}
     <tr style="border-bottom:1px solid #1e1e1e;">
-        <td style="padding:12px 0; color:#f59e0b; font-weight:700;">#{{ os[0] }}</td>
-        <td><strong>{{ os[2] }}</strong></td>
+        <td style="padding:12px 0; color:#f59e0b; font-weight:700;">#{{ os['id'] }}</td>
+        <td><strong>{{ os['nome'] }}</strong></td>
         <td style="color:#aaa; font-size:13px;">{{ os[1] }}</td>
         <td style="text-align:center;">
             {% if os[4] == 'fechada' %}
@@ -34,13 +34,13 @@
         </td>
         {% if is_admin %}
         <td style="text-align:center; font-weight:600; color:#22c55e;">
-            R$ {{ "%.2f"|format(os[3] or 0) }}
+            R$ {{ "%.2f"|format(os['total'] or 0) }}
         </td>
         {% endif %}
         <td style="text-align:right; padding:12px 0;">
             <div style="display:flex; gap:8px; justify-content:flex-end;">
-                <a href="{{ url_for('os.itens', os_id=os[0]) }}" class="btn" style="font-size:12px;">📋 Itens</a>
-                {% if is_admin %}<a href="/gerar_pdf_os/{{ os[0] }}" class="btn btn-secondary" style="font-size:12px;">📄 PDF</a>{% endif %}
+                <a href="{{ url_for('os.itens', os_id=os['id']) }}" class="btn" style="font-size:12px;">📋 Itens</a>
+                {% if is_admin %}<a href="/gerar_pdf_os/{{ os['id'] }}" class="btn btn-secondary" style="font-size:12px;">📄 PDF</a>{% endif %}
             </div>
         </td>
     </tr>
