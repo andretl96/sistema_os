@@ -52,6 +52,7 @@ def criar_tabelas():
     """)
 
     # ITENS
+    # ITENS
     c.execute("""
     CREATE TABLE IF NOT EXISTS itens (
         id SERIAL PRIMARY KEY,
@@ -62,7 +63,8 @@ def criar_tabelas():
         solucao TEXT,
         status TEXT DEFAULT 'aguardando',
         tipo_reparo_id INTEGER REFERENCES tipos_reparo(id),
-        valor_cobrado REAL DEFAULT 0.0
+        valor_cobrado REAL DEFAULT 0.0,
+        mac TEXT
     )
     """)
 
