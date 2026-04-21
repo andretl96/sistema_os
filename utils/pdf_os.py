@@ -7,10 +7,10 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 import io
 from datetime import datetime
 
-EMPRESA_NOME   = "TechRepair"
-EMPRESA_END    = "Rua das Placas, 123 — Centro"
-EMPRESA_TEL    = "(00) 99999-9999"
-EMPRESA_EMAIL  = "contato@techrepair.com"
+EMPRESA_NOME   = "TERRATECH 🌐"
+EMPRESA_END    = "Rua São Vicente, 587 — Centro"
+EMPRESA_TEL    = "(35) 99822-6258"
+EMPRESA_EMAIL  = "terratech.comercial@gmail.com"
 
 COR_PRIMARIA   = colors.HexColor("#f59e0b")
 COR_ESCURA     = colors.HexColor("#1a1a1a")
@@ -28,9 +28,8 @@ def _fmt_brl(valor):
 
 
 def _get(row, key, default="—"):
-    """Acessa dicionário ou objeto com segurança."""
     try:
-        val = row[key] if hasattr(row, "keys") else row[key]
+        val = row[key]
         return val if val is not None else default
     except Exception:
         return default
@@ -46,35 +45,34 @@ def _secao_equipamentos(story, titulo, itens_grupo, estilo_normal, estilo_bold, 
     )))
 
     cab = [
-        Paragraph("Equipamento",       estilo_cabec),
-        Paragraph("Defeito",           estilo_cabec),
-        Paragraph("Serviço / Obs.",    estilo_cabec),
-        Paragraph("Tipo",              estilo_cabec),
-        Paragraph("Garantia",          estilo_cabec),
-        Paragraph("Valor (R$)",        estilo_cabec),
+        Paragraph("Equipamento",    estilo_cabec),
+        Paragraph("Defeito",        estilo_cabec),
+        Paragraph("Serviço / Obs.", estilo_cabec),
+        Paragraph("Tipo",           estilo_cabec),
+        Paragraph("Garantia",       estilo_cabec),
+        Paragraph("Valor (R$)",     estilo_cabec),
     ]
     rows = [cab]
 
     for item in itens_grupo:
-        equipamento = _get(item, "equipamento")
-        defeito     = _get(item, "defeito")
-        solucao     = _get(item, "solucao")
+        equipamento = str(_get(item, "equipamento"))
+        defeito     = str(_get(item, "defeito"))
+        solucao     = str(_get(item, "solucao"))
         garantia    = _get(item, "garantia", 0)
-        tipo_nome   = _get(item, "tipo_nome")
+        tipo_nome   = str(_get(item, "tipo_nome"))
         valor       = _get(item, "valor_cobrado", 0.0)
-        if valor == "—":
-            valor = 0.0
+        if valor == "—": valor = 0.0
 
         eh_garantia = (garantia == 1 or garantia == "1")
         valor_txt = "Garantia" if eh_garantia else _fmt_brl(float(valor))
         cor_val = COR_VERDE if eh_garantia else COR_TEXTO
 
         rows.append([
-            Paragraph(str(equipamento), estilo_normal),
-            Paragraph(str(defeito),     estilo_normal),
-            Paragraph(str(solucao),     estilo_normal),
-            Paragraph(str(tipo_nome),   estilo_normal),
-            Paragraph("🛡️ Sim" if eh_garantia else "Não", estilo_normal),
+            Paragraph(equipamento, estilo_normal),
+            Paragraph(defeito,     estilo_normal),
+            Paragraph(solucao,     estilo_normal),
+            Paragraph(tipo_nome,   estilo_normal),
+            Paragraph("Sim" if eh_garantia else "Não", estilo_normal),
             Paragraph(f'<font color="#{("16a34a" if eh_garantia else "1f2937")}">{valor_txt}</font>',
                       ParagraphStyle("val", fontName="Helvetica-Bold", fontSize=9, textColor=cor_val)),
         ])
@@ -113,7 +111,7 @@ def gerar_pdf_os(os_data, itens, parciais=None):
     story = []
     W = 170*mm
 
-    # ── CABEÇALHO ──────────────────────────────────────────────────
+    # CABECALHO
     header_data = [[
         Paragraph(f"⚡ {EMPRESA_NOME}", estilo_titulo),
         Paragraph(
@@ -126,58 +124,53 @@ def gerar_pdf_os(os_data, itens, parciais=None):
     story.append(t)
     story.append(HRFlowable(width=W, color=COR_PRIMARIA, thickness=2, spaceAfter=6))
 
-    # ── FAIXA OS ───────────────────────────────────────────────────
+    # FAIXA OS
     os_id       = _get(os_data, "id", "?")
     os_data_str = _get(os_data, "data", datetime.now().strftime("%Y-%m-%d %H:%M"))
 
     faixa = Table([[
-        Paragraph(f"ORDEM DE SERVIÇO  #{os_id}", ParagraphStyle("os", fontName="Helvetica-Bold", fontSize=13, textColor=colors.white)),
+        Paragraph(f"ORDEM DE SERVICO  #{os_id}", ParagraphStyle("os", fontName="Helvetica-Bold", fontSize=13, textColor=colors.white)),
         Paragraph(f"Emitida em: {os_data_str}", ParagraphStyle("dt", fontName="Helvetica", fontSize=8, textColor=colors.white, alignment=TA_RIGHT))
     ]], colWidths=[W*0.6, W*0.4])
     faixa.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,-1), COR_ESCURA),
+        ("BACKGROUND",    (0,0), (-1,-1), COR_ESCURA),
         ("TOPPADDING",    (0,0), (-1,-1), 8),
         ("BOTTOMPADDING", (0,0), (-1,-1), 8),
-        ("LEFTPADDING",   (0,0), (0,-1), 12),
+        ("LEFTPADDING",   (0,0), (0,-1),  12),
         ("RIGHTPADDING",  (-1,0), (-1,-1), 12),
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
     ]))
     story.append(faixa)
     story.append(Spacer(1, 8))
 
-    # ── DADOS DO CLIENTE ───────────────────────────────────────────
-    nome_cli  = _get(os_data, "nome")
-    tel_cli   = _get(os_data, "telefone")
-    cpf_cli   = _get(os_data, "cpf_cnpj")
-    email_cli = _get(os_data, "email")
-    rua       = _get(os_data, "rua", "")
-    numero    = _get(os_data, "numero", "")
-    bairro    = _get(os_data, "bairro", "")
-    cidade    = _get(os_data, "cidade", "")
-    cep       = _get(os_data, "cep", "")
-    if rua == "—": rua = ""
-    if numero == "—": numero = ""
-    if bairro == "—": bairro = ""
-    if cidade == "—": cidade = ""
-    if cep == "—": cep = ""
+    # DADOS DO CLIENTE
+    nome_cli  = str(_get(os_data, "nome"))
+    tel_cli   = str(_get(os_data, "telefone"))
+    cpf_cli   = str(_get(os_data, "cpf_cnpj"))
+    email_cli = str(_get(os_data, "email"))
+    rua    = _get(os_data, "rua",    ""); rua    = "" if rua    == "—" else str(rua)
+    numero = _get(os_data, "numero", ""); numero = "" if numero == "—" else str(numero)
+    bairro = _get(os_data, "bairro", ""); bairro = "" if bairro == "—" else str(bairro)
+    cidade = _get(os_data, "cidade", ""); cidade = "" if cidade == "—" else str(cidade)
+    cep    = _get(os_data, "cep",    ""); cep    = "" if cep    == "—" else str(cep)
 
     endereco   = f"{rua}{', '+numero if numero else ''}{', '+bairro if bairro else ''}"
     cidade_cep = f"{cidade}{' — CEP '+cep if cep else ''}"
 
     story.append(Paragraph("DADOS DO CLIENTE", secao_titulo))
     cli_data = [
-        [Paragraph("<b>Nome:</b>",     estilo_bold), Paragraph(nome_cli,  estilo_normal),
-         Paragraph("<b>CPF/CNPJ:</b>", estilo_bold), Paragraph(cpf_cli,  estilo_normal)],
-        [Paragraph("<b>Telefone:</b>", estilo_bold), Paragraph(tel_cli,  estilo_normal),
-         Paragraph("<b>E-mail:</b>",   estilo_bold), Paragraph(email_cli, estilo_normal)],
-        [Paragraph("<b>Endereço:</b>", estilo_bold), Paragraph(endereco or "—", estilo_normal),
-         Paragraph("<b>Cidade:</b>",   estilo_bold), Paragraph(cidade_cep or "—", estilo_normal)],
+        [Paragraph("<b>Nome:</b>",     estilo_bold), Paragraph(nome_cli,         estilo_normal),
+         Paragraph("<b>CPF/CNPJ:</b>", estilo_bold), Paragraph(cpf_cli,          estilo_normal)],
+        [Paragraph("<b>Telefone:</b>", estilo_bold), Paragraph(tel_cli,          estilo_normal),
+         Paragraph("<b>E-mail:</b>",   estilo_bold), Paragraph(email_cli,        estilo_normal)],
+        [Paragraph("<b>Endereco:</b>", estilo_bold), Paragraph(endereco or "—",  estilo_normal),
+         Paragraph("<b>Cidade:</b>",   estilo_bold), Paragraph(cidade_cep or "—",estilo_normal)],
     ]
     tc = Table(cli_data, colWidths=[22*mm, W*0.35, 22*mm, W*0.30])
     tc.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f9fafb")),
-        ("BOX",        (0,0), (-1,-1), 0.5, COR_LINHA),
-        ("INNERGRID",  (0,0), (-1,-1), 0.3, COR_LINHA),
+        ("BACKGROUND",    (0,0), (-1,-1), colors.HexColor("#f9fafb")),
+        ("BOX",           (0,0), (-1,-1), 0.5, COR_LINHA),
+        ("INNERGRID",     (0,0), (-1,-1), 0.3, COR_LINHA),
         ("TOPPADDING",    (0,0), (-1,-1), 4),
         ("BOTTOMPADDING", (0,0), (-1,-1), 4),
         ("LEFTPADDING",   (0,0), (-1,-1), 6),
@@ -186,82 +179,65 @@ def gerar_pdf_os(os_data, itens, parciais=None):
     story.append(tc)
     story.append(Spacer(1, 10))
 
-    # ── EQUIPAMENTOS POR GRUPO ─────────────────────────────────────
-    grupos = {
-        "reparado":              [],
-        "aguardando_componente": [],
-        "nao_passivel":          [],
-        "aguardando":            [],
-    }
+    # EQUIPAMENTOS POR GRUPO
+    grupos = {"reparado": [], "aguardando_componente": [], "nao_passivel": [], "aguardando": []}
     for item in itens:
         status = _get(item, "status", "aguardando")
-        if status == "—":
-            status = "aguardando"
-        if status in grupos:
-            grupos[status].append(item)
-        else:
-            grupos["aguardando"].append(item)
+        if status == "—": status = "aguardando"
+        grupos.setdefault(status if status in grupos else "aguardando", []).append(item)
 
     config_grupos = [
-        ("reparado",              "✅ REPARADOS",                 COR_VERDE),
-        ("aguardando_componente", "⏳ AGUARDANDO COMPONENTE",     COR_ROXO),
-        ("nao_passivel",          "❌ NÃO PASSÍVEL DE REPARO",    COR_VERMELHO),
-        ("aguardando",            "🔧 AGUARDANDO REPARO",         COR_LARANJA),
+        ("reparado",              "REPARADOS",              COR_VERDE),
+        ("aguardando_componente", "AGUARDANDO COMPONENTE",  COR_ROXO),
+        ("nao_passivel",          "NAO PASSIVEL DE REPARO", COR_VERMELHO),
+        ("aguardando",            "AGUARDANDO REPARO",      COR_LARANJA),
     ]
 
-    story.append(Paragraph("EQUIPAMENTOS / SERVIÇOS", secao_titulo))
-
+    story.append(Paragraph("EQUIPAMENTOS / SERVICOS", secao_titulo))
     algum_grupo = False
     for chave, label, cor in config_grupos:
-        if grupos[chave]:
+        if grupos.get(chave):
             algum_grupo = True
             _secao_equipamentos(story, label, grupos[chave],
                                 estilo_normal, estilo_bold, estilo_cabec, secao_titulo, cor, W)
-
     if not algum_grupo:
         story.append(Paragraph("Nenhum equipamento registrado.", estilo_normal))
-
     story.append(Spacer(1, 10))
 
-    # ── TOTAIS ─────────────────────────────────────────────────────
+    # TOTAIS
     total_geral = 0.0
     for item in itens:
         garantia = _get(item, "garantia", 0)
         if not (garantia == 1 or garantia == "1"):
             val = _get(item, "valor_cobrado", 0.0)
-            try:
-                total_geral += float(val) if val != "—" else 0.0
-            except Exception:
-                pass
+            try: total_geral += float(val) if val != "—" else 0.0
+            except: pass
 
-    total_parciais_pagas = 0.0
+    total_parciais_pagas     = 0.0
     total_parciais_nao_pagas = 0.0
     if parciais:
         for p in parciais:
             try:
                 val  = float(_get(p, "valor_cobrado", 0.0))
                 pago = _get(p, "pago", 0)
-                if pago:
-                    total_parciais_pagas += val
-                else:
-                    total_parciais_nao_pagas += val
-            except Exception:
-                pass
+                if pago: total_parciais_pagas += val
+                else:    total_parciais_nao_pagas += val
+            except: pass
 
     total_a_cobrar = max(0.0, total_geral - total_parciais_pagas)
 
     total_rows = [[
-        Paragraph("TOTAL DOS SERVIÇOS:", ParagraphStyle("vt", fontName="Helvetica-Bold", fontSize=10, textColor=colors.white, alignment=TA_RIGHT)),
-        Paragraph(_fmt_brl(total_geral), ParagraphStyle("vtv", fontName="Helvetica-Bold", fontSize=13, textColor=COR_PRIMARIA, alignment=TA_RIGHT))
+        Paragraph("TOTAL DOS SERVICOS:", ParagraphStyle("vt", fontName="Helvetica-Bold", fontSize=10, textColor=colors.white, alignment=TA_RIGHT)),
+        Paragraph(_fmt_brl(total_geral),  ParagraphStyle("vtv", fontName="Helvetica-Bold", fontSize=13, textColor=COR_PRIMARIA, alignment=TA_RIGHT))
     ]]
     if total_parciais_pagas > 0:
         total_rows.append([
-            Paragraph("— Parciais já recebidas:", ParagraphStyle("vp", fontName="Helvetica", fontSize=9, textColor=colors.HexColor("#86efac"), alignment=TA_RIGHT)),
+            Paragraph("Parciais ja recebidas:", ParagraphStyle("vp", fontName="Helvetica", fontSize=9, textColor=colors.HexColor("#86efac"), alignment=TA_RIGHT)),
             Paragraph(f"- {_fmt_brl(total_parciais_pagas)}", ParagraphStyle("vpv", fontName="Helvetica-Bold", fontSize=9, textColor=colors.HexColor("#86efac"), alignment=TA_RIGHT))
         ])
     if total_parciais_nao_pagas > 0:
         total_rows.append([
-            Paragraph("⚠ Parciais entregues (pagto pendente):", ParagraphStyle("vpn", fontName="Helvetica", fontSize=8, textColor=colors.HexColor("#fbbf24"), alignment=TA_RIGHT)),
+            Paragraph("Parciais entregues (pagto pendente):", ParagraphStyle("vpn", fontName="Helvetica", fontSize=8, textColor=colors.HexColor("#fbbf24"), alignment=TA_RIGHT)),
             Paragraph(_fmt_brl(total_parciais_nao_pagas), ParagraphStyle("vpnv", fontName="Helvetica-Bold", fontSize=9, textColor=colors.HexColor("#fbbf24"), alignment=TA_RIGHT))
         ])
     total_rows.append([
@@ -280,29 +256,27 @@ def gerar_pdf_os(os_data, itens, parciais=None):
     story.append(total_tab)
     story.append(Spacer(1, 12))
 
-    # ── HISTÓRICO DE PARCIAIS ──────────────────────────────────────
+    # HISTORICO DE PARCIAIS
     if parciais:
-        story.append(Paragraph("HISTÓRICO DE ENTREGAS PARCIAIS", secao_titulo))
-        parc_cab = [
-            Paragraph("Data",        estilo_cabec),
-            Paragraph("Descrição",   estilo_cabec),
-            Paragraph("Valor",       estilo_cabec),
-            Paragraph("Situação",    estilo_cabec),
-        ]
-        parc_rows = [parc_cab]
+        story.append(Paragraph("HISTORICO DE ENTREGAS PARCIAIS", secao_titulo))
+        parc_rows = [[
+            Paragraph("Data",      estilo_cabec),
+            Paragraph("Descricao", estilo_cabec),
+            Paragraph("Valor",     estilo_cabec),
+            Paragraph("Situacao",  estilo_cabec),
+        ]]
         for p in parciais:
             try:
-                data_p = _get(p, "data")
+                data_p = str(_get(p, "data"))
                 val_p  = float(_get(p, "valor_cobrado", 0.0))
                 pago_p = _get(p, "pago", 0)
-                desc_p = _get(p, "descricao")
-            except Exception:
-                continue
-            situacao = "✅ Pago" if pago_p else "⚠️ Pendente"
+                desc_p = str(_get(p, "descricao"))
+            except: continue
+            situacao = "Pago" if pago_p else "Pendente"
             cor_sit  = "#16a34a" if pago_p else "#f59e0b"
             parc_rows.append([
-                Paragraph(str(data_p), estilo_normal),
-                Paragraph(str(desc_p), estilo_normal),
+                Paragraph(data_p, estilo_normal),
+                Paragraph(desc_p, estilo_normal),
                 Paragraph(_fmt_brl(val_p), ParagraphStyle("pv", fontName="Helvetica-Bold", fontSize=9, textColor=COR_TEXTO)),
                 Paragraph(f'<font color="{cor_sit}">{situacao}</font>', estilo_normal),
             ])
@@ -320,18 +294,18 @@ def gerar_pdf_os(os_data, itens, parciais=None):
         story.append(tp)
         story.append(Spacer(1, 12))
 
-    # ── ASSINATURA ────────────────────────────────────────────────
+    # ASSINATURA
     ass = Table([[
         Table([[Paragraph("_" * 40, estilo_normal)],
                [Paragraph("Assinatura do Cliente", estilo_sub)]], colWidths=[W*0.45]),
         Table([[Paragraph("_" * 40, estilo_normal)],
-               [Paragraph("Responsável Técnico", estilo_sub)]], colWidths=[W*0.45]),
+               [Paragraph("Responsavel Tecnico", estilo_sub)]], colWidths=[W*0.45]),
     ]], colWidths=[W*0.5, W*0.5])
     story.append(ass)
     story.append(Spacer(1, 12))
     story.append(HRFlowable(width=W, color=COR_LINHA, thickness=0.5))
     story.append(Paragraph(
-        f"Documento gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')} — {EMPRESA_NOME}",
+        f"Documento gerado em {datetime.now().strftime('%d/%m/%Y as %H:%M')} — {EMPRESA_NOME}",
         ParagraphStyle("rodape", fontName="Helvetica", fontSize=7, textColor=COR_CINZA, alignment=TA_CENTER)
     ))
 
