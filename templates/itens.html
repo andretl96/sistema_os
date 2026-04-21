@@ -78,6 +78,9 @@
             {% endif %}
         </div>
         <span style="color:#888;">{{ item['defeito'] }}</span>
+        {% if item['mac'] %}
+        <br><small style="color:#64748b;">🔌 MAC/Série: {{ item['mac'] }}</small>
+        {% endif %}
         {% if item['solucao'] %}
         <br><small style="color:#64748b;">→ {{ item['solucao'] }}</small>
         {% endif %}
