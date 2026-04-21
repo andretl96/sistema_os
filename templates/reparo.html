@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Realizar Reparo{% endblock %}
+{% block page_title %}Registrar Reparo{% endblock %}
+
+{% block topbar_actions %}
+{% if item %}
+<a href="/itens/{{ item['os_id'] }}" class="btn btn-secondary" style="font-size:13px;">← Voltar à OS</a>
+{% else %}
+<a href="/lista_os" class="btn btn-secondary" style="font-size:13px;">← Voltar às OS</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+{% if item %}
+<div class="card" style="margin-bottom:20px; border-left:3px solid #f59e0b; padding-left:18px;">
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <strong style="font-size:15px;">{{ item['equipamento'] }}</strong>
+        <span style="color:#888;">·</span>
+        <span style="color:#aaa;">{{ item['defeito'] }}</span>
+        {% if item['garantia'] == 1 or item['garantia'] == '1' %}
+        <span style="background:#16a34a22; color:#22c55e; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:700;">🛡️ GARANTIA</span>
+        {% endif %}
+        {% if item['mac'] %}
+        <span style="background:#3b82f622; color:#60a5fa; padding:2px 10px; border-radius:20px; font-size:12px;">🔌 {{ item['mac'] }}</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% set eh_garantia = (item and (item['garantia'] == 1 or item['garantia'] == '1')) %}
+
+<div class="card">
+    <form method="POST" id="form-reparo">
+
+        <!-- STATUS DO REPARO -->
+        <div style="margin-bottom:20px;">
+            <label class="form-label">Status do Reparo *</label>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <label class="status-opt" id="opt-reparado">
+                    <input type="radio" name="status_reparo" value="reparado" checked onchange="onStatusChange(this)">
+                    <span>✅ Reparado</span>
+                </label>
+                <label class="status-opt" id="opt-aguardando_componente">
+                    <input type="radio" name="status_reparo" value="aguardando_componente" onchange="onStatusChange(this)">
+                    <span>⏳ Aguardando Componente</span>
+                </label>
+                <label class="status-opt" id="opt-nao_passivel">
+                    <input type="radio" name="status_reparo" value="nao_passivel" onchange="onStatusChange(this)">
+                    <span>❌ Não Passível de Reparo</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- TIPO DE REPARO -->
+        <div style="margin-bottom:18px;" id="bloco-tipo">
+            <label class="form-label">Tipo de Serviço Realizado</label>
+            <select name="tipo_reparo_id" id="tipo_reparo_id" class="form-input" onchange="preencherValor()">
+                <option value="">— Selecionar tipo —</option>
+                {% for tipo in tipos %}
+                <option value="{{ tipo['id'] }}" data-valor="{{ tipo['valor_padrao'] }}">
+                    {{ tipo['nome'] }}{% if tipo['descricao'] %} — {{ tipo['descricao'] }}{% endif %}
+                    &nbsp;(R$ {{ "%.2f"|format(tipo['valor_padrao']) }})
+                </option>
+                {% endfor %}
+            </select>
+            {% if not tipos %}
+            <p style="color:#ef4444; font-size:12px; margin-top:6px;">
+                ⚠️ Nenhum tipo cadastrado. <a href="/tipos_reparo" style="color:#f59e0b;">Cadastrar agora →</a>
+            </p>
+            {% endif %}
+        </div>
+
+        <!-- VALOR COBRADO -->
+        {% if eh_garantia %}
+        <div style="margin-bottom:18px; background:#16a34a11; border:1px solid #22c55e44; border-radius:8px; padding:14px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:20px;">🛡️</span>
+                <div>
+                    <strong style="color:#22c55e;">Item em Garantia</strong>
+                    <p style="color:#888; font-size:12px; margin:2px 0 0;">Valor zerado automaticamente — sem cobrança ao cliente.</p>
+                </div>
+            </div>
+            <input type="hidden" name="valor_cobrado" value="0">
+        </div>
+        {% elif is_admin %}
+        <div style="margin-bottom:18px;" id="bloco-valor">
+            <label class="form-label">Valor Cobrado (R$) <span style="color:#888; font-weight:normal;">— editável</span></label>
+            <input type="text" name="valor_cobrado" id="valor_cobrado" value="0,00" class="form-input"
+                   style="font-size:18px; font-weight:700; color:#f59e0b; max-width:200px;">
+        </div>
+        {% else %}
+        {# Aux: valor zerado, sem exibir campo #}
+        <input type="hidden" name="valor_cobrado" value="0">
+        {% endif %}
+
+        <!-- MAC / Nº SÉRIE (editável inline se não tiver) -->
+        <div style="margin-bottom:18px;">
+            <label class="form-label">
+                MAC / Nº Série
+                {% if item and not item['mac'] %}
+                <span style="color:#f59e0b; font-size:11px; font-weight:600;">— não informado no cadastro, preencha aqui se disponível</span>
+                {% endif %}
+            </label>
+            <input type="text" name="mac" id="mac"
+                   value="{{ item['mac'] if item and item['mac'] else '' }}"
+                   placeholder="AA:BB:CC:DD:EE:FF ou nº de série"
+                   class="form-input" style="max-width:320px;">
+        </div>
+
+        <!-- SOLUÇÃO -->
+        <div style="margin-bottom:18px;">
+            <label class="form-label">Observações / Solução Aplicada</label>
+            <textarea name="solucao" placeholder="Descreva o que foi feito, identificado, ou por que não é passível de reparo..."
+                      rows="4" class="form-input" style="resize:vertical;"></textarea>
+        </div>
+
+        <!-- COMPONENTE DO ESTOQUE -->
+        <div style="display:flex; gap:14px; margin-bottom:24px; flex-wrap:wrap;" id="bloco-componente">
+            <div style="flex:2; min-width:200px;">
+                <label class="form-label">Componente Utilizado (opcional)</label>
+                <select name="componente" class="form-input">
+                    <option value="">Nenhum (mão de obra)</option>
+                    {% for comp in componentes %}
+                    <option value="{{ comp['id'] }}">{{ comp['nome'] }} — Estoque: {{ comp['quantidade'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="flex:1; min-width:100px;">
+                <label class="form-label">Quantidade</label>
+                <input type="number" name="quantidade" value="0" min="0" class="form-input">
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+            <button type="submit" class="btn" id="btn-submit">✅ Salvar</button>
+            {% if item %}
+            <a href="/itens/{{ item['os_id'] }}" class="btn btn-secondary">Cancelar</a>
+            {% else %}
+            <a href="/lista_os" class="btn btn-secondary">Cancelar</a>
+            {% endif %}
+        </div>
+
+    </form>
+</div>
+
+<script>
+function preencherValor() {
+    const sel = document.getElementById("tipo_reparo_id");
+    if (!sel) return;
+    const opt = sel.options[sel.selectedIndex];
+    const valor = opt ? (opt.dataset.valor || "0") : "0";
+    const num = parseFloat(valor).toFixed(2).replace(".", ",");
+    const campo = document.getElementById("valor_cobrado");
+    if (campo) campo.value = num;
+}
+
+function onStatusChange(radio) {
+    const status = radio.value;
+    const blocoValor = document.getElementById("bloco-valor");
+    const blocoComp  = document.getElementById("bloco-componente");
+    const btn        = document.getElementById("btn-submit");
+
+    if (status === "reparado") {
+        if (blocoValor) blocoValor.style.display = "";
+        if (blocoComp)  blocoComp.style.display  = "";
+        btn.textContent = "✅ Salvar como Reparado";
+    } else if (status === "aguardando_componente") {
+        if (blocoValor) blocoValor.style.display = "none";
+        if (blocoComp)  blocoComp.style.display  = "none";
+        btn.textContent = "⏳ Salvar — Aguardando Componente";
+    } else if (status === "nao_passivel") {
+        if (blocoValor) blocoValor.style.display = "none";
+        if (blocoComp)  blocoComp.style.display  = "none";
+        btn.textContent = "❌ Salvar — Não Passível de Reparo";
+    }
+}
+</script>
+
+<style>
+.form-label  { display:block; font-size:12px; color:#aaa; margin-bottom:5px; font-weight:500; }
+.form-input  { width:100%; padding:10px 14px; background:#111; border:1px solid #333; border-radius:8px; color:#fff; font-size:13px; box-sizing:border-box; }
+.form-input:focus { outline:none; border-color:#f59e0b; }
+.status-opt  { display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border:1px solid #333; border-radius:8px; cursor:pointer; font-size:13px; transition:all .15s; }
+.status-opt:has(input:checked) { border-color:#f59e0b; background:#f59e0b11; color:#f59e0b; }
+.status-opt input { display:none; }
+</style>
+{% endblock %}

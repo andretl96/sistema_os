@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}Itens da OS{% endblock %}
+{% block page_title %}Itens da OS #{{ os_id }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/lista_os" class="btn btn-secondary" style="font-size:13px;">← Voltar às OS</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- FORMULÁRIO PARA ADICIONAR ITEM -->
+{% if os_status == 'aberta' %}
+<div class="card" style="margin-bottom: 24px;">
+    <h3 style="margin-top:0;">Adicionar Equipamento</h3>
+    <form method="POST" style="display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <div style="flex:2; min-width:180px;">
+                <label style="font-size:13px; color:#aaa;">Equipamento</label>
+                <input type="text" name="equipamento" placeholder="Ex: Notebook Dell" required style="width:100%; box-sizing:border-box; background:#111; border:1px solid #333; border-radius:8px; color:#fff; padding:10px 14px;">
+            </div>
+            <div style="flex:2; min-width:180px;">
+                <label style="font-size:13px; color:#aaa;">Defeito Relatado</label>
+                <input type="text" name="defeito" placeholder="Ex: Não liga" required style="width:100%; box-sizing:border-box; background:#111; border:1px solid #333; border-radius:8px; color:#fff; padding:10px 14px;">
+            </div>
+            <div style="flex:2; min-width:180px;">
+                <label style="font-size:13px; color:#aaa;">MAC / Nº Série</label>
+                <input type="text" name="mac" placeholder="Ex: AA:BB:CC:DD:EE:FF" style="width:100%; box-sizing:border-box; background:#111; border:1px solid #333; border-radius:8px; color:#fff; padding:10px 14px;">
+            </div>
+            <div style="flex:1; min-width:130px;">
+                <label style="font-size:13px; color:#aaa;">Garantia?</label>
+                <select name="garantia" style="width:100%; box-sizing:border-box; background:#111; border:1px solid #333; border-radius:8px; color:#fff; padding:10px 14px;">
+                    <option value="">Não</option>
+                    <option value="sim">Sim — em garantia</option>
+                </select>
+            </div>
+        </div>
+        <div>
+            <button type="submit" class="btn">➕ Adicionar Item</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<!-- AÇÕES DA OS -->
+<div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+    {% if os_status == 'aberta' %}
+    {% if is_admin %}
+    <a href="/fechar_parcial/{{ os_id }}" class="btn btn-secondary" style="font-size:13px;">📦 Entrega Parcial</a>
+    <a href="/fechar_os_final/{{ os_id }}" class="btn" style="font-size:13px; background:#22c55e;">✅ Fechar OS</a>
+    {% endif %}
+    {% else %}
+    <span style="color:#22c55e; font-weight:700; font-size:14px;">✅ OS Fechada</span>
+    {% endif %}
+    {% if is_admin %}<a href="/gerar_pdf_os/{{ os_id }}" class="btn btn-secondary" style="font-size:13px;">📄 Gerar PDF</a>{% endif %}
+</div>
+
+<!-- LISTA DE ITENS -->
+{% set tem_reparado = [] %}
+{% set tem_aguardando_comp = [] %}
+{% set tem_nao_passivel = [] %}
+{% set tem_aguardando = [] %}
+
+{% for item in itens %}
+    {% if item['status'] == 'reparado' %}{% set _ = tem_reparado.append(item) %}
+    {% elif item['status'] == 'aguardando_componente' %}{% set _ = tem_aguardando_comp.append(item) %}
+    {% elif item['status'] == 'nao_passivel' %}{% set _ = tem_nao_passivel.append(item) %}
+    {% else %}{% set _ = tem_aguardando.append(item) %}
+    {% endif %}
+{% endfor %}
+
+{% macro card_item(item) %}
+<div class="card" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:12px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:200px;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <strong>{{ item['equipamento'] }}</strong>
+            {% if item['garantia'] == 1 or item['garantia'] == '1' %}
+            <span style="background:#16a34a22; color:#22c55e; padding:1px 8px; border-radius:20px; font-size:11px; font-weight:700;">🛡️ Garantia</span>
+            {% endif %}
+        </div>
+        <span style="color:#888;">{{ item['defeito'] }}</span>
+        {% if item['mac'] %}
+        <br><small style="color:#60a5fa;">🔌 MAC/Série: <strong>{{ item['mac'] }}</strong></small>
+        {% else %}
+        <br><small style="color:#555;">🔌 MAC/Série: <em>não informado</em></small>
+        {% endif %}
+        {% if item['solucao'] %}
+        <br><small style="color:#64748b;">→ {{ item['solucao'] }}</small>
+        {% endif %}
+        {% if is_admin %}
+        {% if item['valor_cobrado'] and item['valor_cobrado'] > 0 and (item['garantia'] != 1 and item['garantia'] != '1') %}
+        <br><small style="color:#f59e0b; font-weight:700;">R$ {{ "%.2f"|format(item['valor_cobrado']) }}</small>
+        {% elif item['garantia'] == 1 or item['garantia'] == '1' %}
+        <br><small style="color:#22c55e;">Sem cobrança (garantia)</small>
+        {% endif %}
+        {% endif %}
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
+        {% if os_status == 'aberta' %}
+        <a href="/reparo/{{ item['id'] }}" class="btn" style="font-size:12px;">⚡ Atualizar</a>
+        {% if is_admin %}
+        <button onclick="abrirEditar(
+                    {{ item['id'] }},
+                    '{{ item['equipamento']|e }}',
+                    '{{ item['defeito']|e }}',
+                    '{{ item['mac']|default('')|e }}',
+                    {{ '1' if (item['garantia']==1 or item['garantia']=='1') else '0' }},
+                    '{{ item['solucao']|default('')|e }}',
+                    '{{ item['valor_cobrado']|default(0) }}'
+                )"
+                class="btn btn-secondary" style="font-size:12px;">✏️ Editar</button>
+        <form method="POST" action="/itens/{{ item['id'] }}/deletar" style="display:inline;"
+              onsubmit="return confirm('Remover este equipamento da OS?')">
+            <button type="submit" class="btn" style="font-size:12px; background:#ef444422; color:#ef4444; border:1px solid #ef444444;">🗑️</button>
+        </form>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{% if tem_aguardando %}
+<h3 style="color:#f59e0b; font-size:14px; margin:16px 0 8px;">🔧 Aguardando Reparo ({{ tem_aguardando|length }})</h3>
+{% for item in tem_aguardando %}{{ card_item(item) }}{% endfor %}
+{% endif %}
+
+{% if tem_aguardando_comp %}
+<h3 style="color:#a855f7; font-size:14px; margin:16px 0 8px;">⏳ Aguardando Componente ({{ tem_aguardando_comp|length }})</h3>
+{% for item in tem_aguardando_comp %}{{ card_item(item) }}{% endfor %}
+{% endif %}
+
+{% if tem_reparado %}
+<h3 style="color:#22c55e; font-size:14px; margin:16px 0 8px;">✅ Reparados ({{ tem_reparado|length }})</h3>
+{% for item in tem_reparado %}{{ card_item(item) }}{% endfor %}
+{% endif %}
+
+{% if tem_nao_passivel %}
+<h3 style="color:#ef4444; font-size:14px; margin:16px 0 8px;">❌ Não Passível de Reparo ({{ tem_nao_passivel|length }})</h3>
+{% for item in tem_nao_passivel %}{{ card_item(item) }}{% endfor %}
+{% endif %}
+
+{% if not itens %}
+<p style="color:#666;">Nenhum item adicionado ainda. Use o formulário acima.</p>
+{% endif %}
+
+<!-- MODAL EDITAR ITEM -->
+{% if is_admin %}
+<div id="modal-editar" style="display:none; position:fixed; inset:0; background:#000a; z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#1a1a1a; border:1px solid #333; border-radius:14px; padding:28px 24px; width:100%; max-width:560px; margin:16px; max-height:90vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <strong style="font-size:15px;">✏️ Editar Equipamento</strong>
+            <button onclick="fecharEditar()" style="background:none; border:none; color:#888; font-size:20px; cursor:pointer;">✕</button>
+        </div>
+        <form method="POST" id="form-editar-item">
+            <div style="display:flex; flex-direction:column; gap:14px;">
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:200px;">
+                        <label style="font-size:12px; color:#aaa; display:block; margin-bottom:5px;">Equipamento *</label>
+                        <input type="text" name="equipamento" id="edit-equipamento" required
+                               style="width:100%; padding:10px 14px; background:#111; border:1px solid #333; border-radius:8px; color:#fff; font-size:14px; box-sizing:border-box;">
+                    </div>
+                    <div style="flex:1; min-width:200px;">
+                        <label style="font-size:12px; color:#aaa; display:block; margin-bottom:5px;">Defeito Relatado *</label>
+                        <input type="text" name="defeito" id="edit-defeito" required
+                               style="width:100%; padding:10px 14px; background:#111; border:1px solid #333; border-radius:8px; color:#fff; font-size:14px; box-sizing:border-box;">
+                    </div>
+                </div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                    <div style="flex:2; min-width:200px;">
+                        <label style="font-size:12px; color:#aaa; display:block; margin-bottom:5px;">🔌 MAC / Nº Série</label>
+                        <input type="text" name="mac" id="edit-mac"
+                               placeholder="AA:BB:CC:DD:EE:FF"
+                               style="width:100%; padding:10px 14px; background:#111; border:1px solid #333; border-radius:8px; color:#fff; font-size:14px; box-sizing:border-box;">
+                    </div>
+                    <div style="flex:1; min-width:130px;">
+                        <label style="font-size:12px; color:#aaa; display:block; margin-bottom:5px;">Garantia?</label>
+                        <select name="garantia" id="edit-garantia"
+                                style="width:100%; padding:10px 14px; background:#111; border:1px solid #333; border-radius:8px; color:#fff; font-size:14px;">
+                            <option value="">Não</option>
+                            <option value="sim">Sim — em garantia</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size:12px; color:#aaa; display:block; margin-bottom:5px;">Solução / Observação</label>
+                    <textarea name="solucao" id="edit-solucao" rows="3"
+                              placeholder="Descrição da solução aplicada..."
+                              style="width:100%; padding:10px 14px; background:#111; border:1px solid #333; border-radius:8px; color:#fff; font-size:13px; box-sizing:border-box; resize:vertical; font-family:inherit;"></textarea>
+                </div>
+                <div id="edit-bloco-valor">
+                    <label style="font-size:12px; color:#aaa; display:block; margin-bottom:5px;">Valor Cobrado (R$)</label>
+                    <input type="text" name="valor_cobrado" id="edit-valor"
+                           placeholder="0,00"
+                           style="width:160px; padding:10px 14px; background:#111; border:1px solid #333; border-radius:8px; color:#f59e0b; font-size:16px; font-weight:700; box-sizing:border-box;">
+                </div>
+                <div style="display:flex; gap:10px; margin-top:4px;">
+                    <button type="submit" class="btn" style="flex:1;">💾 Salvar Alterações</button>
+                    <button type="button" onclick="fecharEditar()" class="btn btn-secondary" style="flex:1;">Cancelar</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function abrirEditar(id, equipamento, defeito, mac, garantia, solucao, valor) {
+    document.getElementById('edit-equipamento').value = equipamento;
+    document.getElementById('edit-defeito').value = defeito;
+    document.getElementById('edit-mac').value = mac || '';
+    document.getElementById('edit-garantia').value = garantia ? 'sim' : '';
+    document.getElementById('edit-solucao').value = solucao || '';
+    // formata valor: se vier como "0" ou "0.0", mostra "0,00"
+    const v = parseFloat(valor || 0);
+    document.getElementById('edit-valor').value = v.toFixed(2).replace('.', ',');
+    document.getElementById('form-editar-item').action = '/itens/' + id + '/editar';
+    const modal = document.getElementById('modal-editar');
+    modal.style.display = 'flex';
+}
+function fecharEditar() {
+    document.getElementById('modal-editar').style.display = 'none';
+}
+document.getElementById('modal-editar').addEventListener('click', function(e) {
+    if (e.target === this) fecharEditar();
+});
+</script>
+{% endif %}
+
+
+{% endblock %}

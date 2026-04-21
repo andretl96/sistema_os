@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Chamados dos Clientes{% endblock %}
+{% block page_title %}💬 Chamados dos Clientes{% endblock %}
+
+{% block content %}
+
+<div style="display:grid; gap:14px;">
+{% for ch in chamados %}
+<div style="background:#1a1a1a; border:1px solid {% if ch['status']=='aberto' %}#f59e0b33{% elif ch['status']=='respondido' %}#3b82f633{% else %}#2a2a2a{% endif %}; border-radius:12px; padding:18px 20px;">
+
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px; gap:12px; flex-wrap:wrap;">
+        <div>
+            <div style="font-weight:600; font-size:15px;">{{ ch['assunto'] }}</div>
+            <div style="font-size:12px; color:#888; margin-top:3px;">
+                👤 <strong style="color:#ccc;">{{ ch['cliente_nome'] }}</strong>
+                &nbsp;·&nbsp; 📅 {{ ch['data_abertura'][:16] }}
+                &nbsp;·&nbsp;
+                <span style="color:{% if ch['prioridade']=='urgente' %}#ef4444{% elif ch['prioridade']=='alta' %}#f59e0b{% else %}#60a5fa{% endif %}; font-weight:600;">
+                    {% if ch['prioridade']=='urgente' %}🔴 Urgente{% elif ch['prioridade']=='alta' %}🟡 Alta{% else %}🔵 Normal{% endif %}
+                </span>
+            </div>
+        </div>
+        <span style="border-radius:20px; font-size:11px; font-weight:700; padding:4px 12px;
+            background:{% if ch['status']=='aberto' %}#f59e0b22{% elif ch['status']=='respondido' %}#3b82f622{% else %}#22222244{% endif %};
+            color:{% if ch['status']=='aberto' %}#f59e0b{% elif ch['status']=='respondido' %}#60a5fa{% else %}#666{% endif %};
+            border:1px solid {% if ch['status']=='aberto' %}#f59e0b44{% elif ch['status']=='respondido' %}#3b82f644{% else %}#33333344{% endif %};">
+            {% if ch['status']=='aberto' %}⏳ Aberto{% elif ch['status']=='respondido' %}✉️ Respondido{% else %}✅ Encerrado{% endif %}
+        </span>
+    </div>
+
+    <div style="font-size:13px; color:#999; border-left:2px solid #2a2a2a; padding-left:12px; margin-bottom:14px;">
+        {{ ch['mensagem'] }}
+    </div>
+
+    {% if ch['resposta'] %}
+    <div style="background:#1f1f1f; border:1px solid #2a2a2a; border-radius:8px; padding:10px 14px; margin-bottom:14px;">
+        <div style="font-size:11px; color:#60a5fa; font-weight:600; margin-bottom:4px;">✉️ Sua resposta · {{ ch['data_resposta'][:16] if ch['data_resposta'] else '' }}</div>
+        <div style="font-size:13px; color:#ccc;">{{ ch['resposta'] }}</div>
+    </div>
+    {% endif %}
+
+    {% if ch['status'] != 'fechado' %}
+    <form method="POST" action="/chamados/admin/{{ ch['id'] }}/responder"
+          style="display:grid; gap:8px;">
+        <textarea name="resposta" placeholder="Escrever resposta ao cliente..." rows="2"
+            style="width:100%; padding:9px 12px; background:#111; border:1px solid #333; border-radius:8px; color:#fff; font-size:13px; font-family:inherit; resize:vertical;"></textarea>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button name="status" value="respondido" type="submit"
+                style="background:#3b82f6; color:#fff; border:none; border-radius:8px; padding:7px 16px; font-size:12px; font-weight:600; cursor:pointer;">
+                ✉️ Responder
+            </button>
+            <button name="status" value="fechado" type="submit"
+                style="background:#22c55e22; color:#22c55e; border:1px solid #22c55e44; border-radius:8px; padding:7px 16px; font-size:12px; font-weight:600; cursor:pointer;">
+                ✅ Responder e encerrar
+            </button>
+            <button name="status" value="fechado" type="submit" formnovalidate
+                style="background:transparent; color:#666; border:1px solid #333; border-radius:8px; padding:7px 16px; font-size:12px; cursor:pointer;">
+                Só encerrar
+            </button>
+        </div>
+    </form>
+    {% endif %}
+
+</div>
+{% else %}
+<div style="color:#666; font-size:13px; padding:32px; text-align:center; background:#1a1a1a; border:1px dashed #2a2a2a; border-radius:12px;">
+    Nenhum chamado aberto pelos clientes.
+</div>
+{% endfor %}
+</div>
+
+{% endblock %}

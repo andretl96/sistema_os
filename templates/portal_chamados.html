@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus Chamados — TERRATECH</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        :root { --bg:#0f0f0f; --card:#1a1a1a; --border:#2a2a2a; --accent:#f59e0b; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { background:var(--bg); color:#e5e5e5; font-family:'Inter',sans-serif; }
+        .topbar { background:var(--card); border-bottom:1px solid var(--border); padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; }
+        .topbar-logo { font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:var(--accent); }
+        .topbar-right { display:flex; gap:10px; align-items:center; }
+        .btn-back { background:transparent; border:1px solid #333; color:#aaa; border-radius:8px; padding:5px 14px; font-size:12px; text-decoration:none; }
+        .btn-novo { background:#f59e0b; color:#000; font-weight:700; border:none; border-radius:8px; padding:6px 16px; font-size:12px; text-decoration:none; cursor:pointer; }
+        .page { padding:24px; max-width:760px; margin:0 auto; }
+        h2 { font-family:'Rajdhani',sans-serif; font-size:26px; font-weight:700; color:#fff; margin-bottom:20px; }
+        .chamado-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin-bottom:12px; }
+        .ch-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:8px; gap:12px; }
+        .ch-assunto { font-weight:600; font-size:15px; }
+        .ch-meta { font-size:12px; color:#666; margin-top:2px; }
+        .ch-badge { border-radius:20px; font-size:11px; font-weight:700; padding:4px 12px; white-space:nowrap; }
+        .b-aberto    { background:#f59e0b22; color:#f59e0b; border:1px solid #f59e0b44; }
+        .b-respondido{ background:#3b82f622; color:#60a5fa; border:1px solid #3b82f644; }
+        .b-fechado   { background:#22222244; color:#666; border:1px solid #33333344; }
+        .pri-normal  { color:#60a5fa; font-size:11px; }
+        .pri-alta    { color:#f59e0b; font-size:11px; }
+        .pri-urgente { color:#ef4444; font-size:11px; font-weight:700; }
+        .ch-msg { font-size:13px; color:#999; border-left:2px solid #2a2a2a; padding-left:12px; margin-bottom:8px; }
+        .ch-resposta { background:#1f1f1f; border:1px solid #2a2a2a; border-radius:8px; padding:12px 14px; margin-top:10px; }
+        .ch-resposta-label { font-size:11px; color:#60a5fa; font-weight:600; margin-bottom:4px; }
+        .ch-resposta-txt { font-size:13px; color:#ccc; }
+        .empty { color:#666; font-size:13px; padding:32px; text-align:center; background:var(--card); border:1px dashed #2a2a2a; border-radius:12px; }
+        .alert-success { background:#16a34a22; border:1px solid #22c55e55; color:#22c55e; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="topbar-logo">TERRATECH 🌐</div>
+    <div class="topbar-right">
+        <a href="{{ url_for('portal.portal_novo_chamado') }}" class="btn-novo">+ Novo chamado</a>
+        <a href="{{ url_for('portal.portal_dashboard') }}" class="btn-back">← Início</a>
+    </div>
+</div>
+
+<div class="page">
+    <h2>💬 Meus Chamados</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <div class="alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    {% for ch in chamados %}
+    <div class="chamado-card">
+        <div class="ch-top">
+            <div>
+                <div class="ch-assunto">{{ ch['assunto'] }}</div>
+                <div class="ch-meta">
+                    📅 {{ ch['data_abertura'][:16] }}
+                    &nbsp;·&nbsp;
+                    <span class="pri-{{ ch['prioridade'] }}">
+                        {% if ch['prioridade'] == 'urgente' %}🔴 Urgente
+                        {% elif ch['prioridade'] == 'alta' %}🟡 Alta
+                        {% else %}🔵 Normal{% endif %}
+                    </span>
+                </div>
+            </div>
+            <span class="ch-badge
+                {% if ch['status'] == 'aberto' %}b-aberto
+                {% elif ch['status'] == 'respondido' %}b-respondido
+                {% else %}b-fechado{% endif %}">
+                {% if ch['status'] == 'aberto' %}⏳ Aberto
+                {% elif ch['status'] == 'respondido' %}✉️ Respondido
+                {% else %}✅ Encerrado{% endif %}
+            </span>
+        </div>
+
+        <div class="ch-msg">{{ ch['mensagem'] }}</div>
+
+        {% if ch['resposta'] %}
+        <div class="ch-resposta">
+            <div class="ch-resposta-label">✉️ Resposta da equipe · {{ ch['data_resposta'][:16] if ch['data_resposta'] else '' }}</div>
+            <div class="ch-resposta-txt">{{ ch['resposta'] }}</div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="empty">
+        Você ainda não abriu nenhum chamado.<br>
+        <a href="{{ url_for('portal.portal_novo_chamado') }}" style="color:#f59e0b; text-decoration:none;">Abrir meu primeiro chamado →</a>
+    </div>
+    {% endfor %}
+</div>
+
+</body>
+</html>

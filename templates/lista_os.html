@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Ordens de Serviço{% endblock %}
+{% block page_title %}Ordens de Serviço{% endblock %}
+
+{% block topbar_actions %}
+<a href="/clientes" class="btn" style="font-size:13px;">➕ Nova OS (via Cliente)</a>
+{% endblock %}
+
+{% block content %}
+
+<table style="width:100%; border-collapse:collapse;">
+    <thead>
+        <tr style="color:#aaa; font-size:13px; border-bottom:1px solid #2a2a2a;">
+            <th style="text-align:left; padding:8px 0;">#OS</th>
+            <th style="text-align:left;">Cliente</th>
+            <th style="text-align:left;">Data</th>
+            <th style="text-align:center;">Status</th>
+            {% if is_admin %}<th style="text-align:center;">Total</th>{% endif %}
+            <th style="text-align:right;">Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for os in ordens %}
+    <tr style="border-bottom:1px solid #1e1e1e;">
+        <td style="padding:12px 0; color:#f59e0b; font-weight:700;">#{{ os['id'] }}</td>
+        <td><strong>{{ os['nome'] }}</strong></td>
+        <td style="color:#aaa; font-size:13px;">{{ os['data'] }}</td>
+        <td style="text-align:center;">
+            {% if os['status'] == 'fechada' %}
+            <span style="background:#22c55e22; color:#22c55e; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:700;">✅ Fechada</span>
+            {% else %}
+            <span style="background:#f59e0b22; color:#f59e0b; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:700;">🔧 Aberta</span>
+            {% endif %}
+        </td>
+        {% if is_admin %}
+        <td style="text-align:center; font-weight:600; color:#22c55e;">
+            R$ {{ "%.2f"|format(os['total'] or 0) }}
+        </td>
+        {% endif %}
+        <td style="text-align:right; padding:12px 0;">
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <a href="{{ url_for('os.itens', os_id=os['id']) }}" class="btn" style="font-size:12px;">📋 Itens</a>
+                {% if is_admin %}<a href="/gerar_pdf_os/{{ os['id'] }}" class="btn btn-secondary" style="font-size:12px;">📄 PDF</a>{% endif %}
+            </div>
+        </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" style="color:#666; padding:24px 0; text-align:center;">
+        Nenhuma OS criada. Vá em <a href="/clientes" style="color:#f59e0b;">Clientes</a> → Nova OS.
+    </td></tr>
+    {% endfor %} 
+    </tbody>
+</table>
+{% endblock %}

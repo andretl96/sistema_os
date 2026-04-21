@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novo Chamado — TERRATECH</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        :root { --bg:#0f0f0f; --card:#1a1a1a; --border:#2a2a2a; --accent:#f59e0b; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { background:var(--bg); color:#e5e5e5; font-family:'Inter',sans-serif; }
+        .topbar { background:var(--card); border-bottom:1px solid var(--border); padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; }
+        .topbar-logo { font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:var(--accent); }
+        .btn-back { background:transparent; border:1px solid #333; color:#aaa; border-radius:8px; padding:5px 14px; font-size:12px; text-decoration:none; }
+        .btn-back:hover { border-color:#555; color:#eee; }
+        .page { padding:24px; max-width:640px; margin:0 auto; }
+        h2 { font-family:'Rajdhani',sans-serif; font-size:26px; font-weight:700; color:#fff; margin-bottom:6px; }
+        .sub { font-size:13px; color:#888; margin-bottom:24px; }
+        .form-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:24px; }
+        label { display:block; font-size:12px; font-weight:500; color:#aaa; margin-bottom:6px; }
+        input, textarea, select { width:100%; padding:10px 14px; background:#111; border:1px solid #333; border-radius:8px; color:#fff; font-size:14px; font-family:'Inter',sans-serif; transition:border .2s; }
+        input:focus, textarea:focus, select:focus { outline:none; border-color:#f59e0b55; }
+        textarea { resize:vertical; min-height:120px; }
+        select option { background:#1a1a1a; }
+        .field { margin-bottom:18px; }
+        .prioridade-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:18px; }
+        .pri-opt { display:none; }
+        .pri-label { background:#111; border:1px solid #333; border-radius:10px; padding:12px 10px; text-align:center; cursor:pointer; transition:all .2s; font-size:13px; }
+        .pri-label:hover { border-color:#555; }
+        .pri-opt:checked + .pri-label { border-color:var(--col); background:color-mix(in srgb, var(--col) 15%, transparent); color:var(--col); font-weight:600; }
+        .pri-normal { --col:#60a5fa; }
+        .pri-alta   { --col:#f59e0b; }
+        .pri-urgente{ --col:#ef4444; }
+        .btn-submit { width:100%; background:#f59e0b; color:#000; font-weight:700; border:none; border-radius:10px; padding:13px; font-size:15px; cursor:pointer; margin-top:4px; }
+        .btn-submit:hover { opacity:.9; }
+        .alert-error { background:#dc262622; border:1px solid #ef444455; color:#ef4444; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; }
+        .alert-success { background:#16a34a22; border:1px solid #22c55e55; color:#22c55e; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="topbar-logo">TERRATECH 🌐</div>
+    <a href="{{ url_for('portal.portal_dashboard') }}" class="btn-back">← Voltar</a>
+</div>
+
+<div class="page">
+    <h2>💬 Abrir Chamado</h2>
+    <div class="sub">Descreva seu problema ou dúvida — nossa equipe responderá em breve.</div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <div class="alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <div class="form-card">
+        <form method="POST">
+
+            <div class="field">
+                <label>Assunto *</label>
+                <input type="text" name="assunto" placeholder="Ex: Dúvida sobre prazo de entrega" required maxlength="120">
+            </div>
+
+            <div class="field">
+                <label>Prioridade</label>
+                <div class="prioridade-grid">
+                    <div>
+                        <input type="radio" name="prioridade" id="p-normal" value="normal" class="pri-opt" checked>
+                        <label for="p-normal" class="pri-label pri-normal">🔵 Normal</label>
+                    </div>
+                    <div>
+                        <input type="radio" name="prioridade" id="p-alta" value="alta" class="pri-opt">
+                        <label for="p-alta" class="pri-label pri-alta">🟡 Alta</label>
+                    </div>
+                    <div>
+                        <input type="radio" name="prioridade" id="p-urgente" value="urgente" class="pri-opt">
+                        <label for="p-urgente" class="pri-label pri-urgente">🔴 Urgente</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Mensagem *</label>
+                <textarea name="mensagem" placeholder="Descreva seu problema com detalhes..." required></textarea>
+            </div>
+
+            <button type="submit" class="btn-submit">📨 Enviar Chamado</button>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>
