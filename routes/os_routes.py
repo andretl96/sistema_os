@@ -29,11 +29,13 @@ def itens(os_id):
 
     if request.method == "POST":
         garantia = 1 if request.form.get("garantia") == "sim" else 0
+        mac = request.form.get("mac", "").strip() or None
         c.execute("""
-        INSERT INTO itens (os_id, equipamento, defeito, garantia, status)
-        VALUES (%s, %s, %s, %s, 'aguardando')
-        """, (os_id, request.form["equipamento"], request.form["defeito"], garantia))
+        INSERT INTO itens (os_id, equipamento, defeito, garantia, mac, status)
+        VALUES (%s, %s, %s, %s, %s, 'aguardando')
+        """, (os_id, request.form["equipamento"], request.form["defeito"], garantia, mac))
         conn.commit()
+        flash("Equipamento adicionado com sucesso.", "success")
 
     c.execute("SELECT * FROM itens WHERE os_id=%s", (os_id,))
     itens_lista = c.fetchall()
