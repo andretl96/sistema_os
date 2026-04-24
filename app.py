@@ -1,4 +1,4 @@
-from flask import Flask, redirect
+from flask import Flask, redirect, session
 from config import SECRET_KEY
 
 from routes.auth_routes import auth
@@ -44,6 +44,45 @@ app.register_blueprint(clientes_bp)
 app.register_blueprint(reparo_bp)
 app.register_blueprint(tipos_reparo_bp)
 app.register_blueprint(portal_bp)
+
+
+from flask import send_file
+import io, csv, zipfile
+
+@app.route("/backup")
+def backup_db():
+    if not session.get("user") or session.get("nivel") != "admin":
+        return redirect("/login")
+    
+    conn = conectar()
+    c = conn.cursor()
+    
+    zip_buffer = io.BytesIO()
+    
+    tabelas = ["clientes", "os", "itens", "os_parciais", "componentes",
+               "tipos_reparo", "chamados", "usuarios"]
+    
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for tabela in tabelas:
+            try:
+                c.execute(f"SELECT * FROM {tabela}")
+                rows = c.fetchall()
+                if not rows:
+                    zf.writestr(f"{tabela}.csv", "")
+                    continue
+                out = io.StringIO()
+                writer = csv.DictWriter(out, fieldnames=rows[0].keys())
+                writer.writeheader()
+                writer.writerows([dict(r) for r in rows])
+                zf.writestr(f"{tabela}.csv", out.getvalue())
+            except Exception as e:
+                zf.writestr(f"{tabela}_erro.txt", str(e))
+    
+    conn.close()
+    zip_buffer.seek(0)
+    from datetime import datetime as dt
+    nome = f"backup_techrepair_{dt.now().strftime('%Y%m%d_%H%M%S')}.zip"
+    return send_file(zip_buffer, as_attachment=True, download_name=nome, mimetype="application/zip")
 
 if __name__ == "__main__":
     app.run(debug=True)
