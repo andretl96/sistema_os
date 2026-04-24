@@ -113,9 +113,9 @@
         <div class="num">{{ os_aguardando_pgto|length }}</div>
         <div class="lbl">Aguardando pagamento</div>
     </div>
-    <div class="sum-card blue">
-        <div class="num">{{ os_parciais|length }}</div>
-        <div class="lbl">Pagamento parcial</div>
+    <div class="sum-card green">
+        <div class="num">{{ os_fechadas_pagas|length }}</div>
+        <div class="lbl">OS concluídas</div>
     </div>
     <div class="sum-card green">
         <div class="num">{{ chamados_abertos }}</div>
@@ -188,33 +188,32 @@
     </div>
 </div>
 
-<!-- PAGAMENTO PARCIAL -->
+<!-- AGUARDANDO PAGAMENTO — adiciona botão notificar -->
+<!-- (already replaced above, now add fechadas pagas section) -->
+
+<!-- OS CONCLUÍDAS / PAGAS -->
 <div class="section">
     <div class="section-title">
-        <span class="dot" style="background:#a855f7;"></span>
-        Pagamento Parcial
+        <span class="dot" style="background:#22c55e;"></span>
+        Concluídas &amp; Pagas
     </div>
     <div class="os-list">
-        {% for os in os_parciais %}
+        {% for os in os_fechadas_pagas %}
         <div class="os-card">
             <div class="os-card-left">
                 <div class="os-id">#{{ os['id'] }}</div>
                 <div class="os-info">
                     <div class="os-date">📅 {{ os['data'][:16] if os['data'] else '—' }}</div>
-                    <div class="os-desc">
-                        <span style="color:#22c55e;">✅ R$ {{ "%.2f"|format(os['valor_pago'] or 0) }} pago</span>
-                        &nbsp;·&nbsp;
-                        <span style="color:#ef4444;">R$ {{ "%.2f"|format(os['valor_pendente'] or 0) }} restante</span>
-                    </div>
+                    <div class="os-desc" style="color:#22c55e;">✅ Serviço concluído e pago</div>
                 </div>
             </div>
             <div class="os-card-right">
-                <span class="os-badge badge-parcial">◑ Parcial</span>
+                <span class="os-badge badge-fechada">✅ Concluída</span>
                 <a href="{{ url_for('portal.portal_os_detalhe', os_id=os['id']) }}" class="btn-ver">Ver detalhes</a>
             </div>
         </div>
         {% else %}
-        <div class="empty">Nenhuma OS com pagamento parcial.</div>
+        <div class="empty">Nenhuma OS concluída ainda.</div>
         {% endfor %}
     </div>
 </div>
