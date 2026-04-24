@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notificar Pagamento — TERRATECH</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        :root { --bg:#0f0f0f; --card:#1a1a1a; --border:#2a2a2a; --accent:#f59e0b; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { background:var(--bg); color:#e5e5e5; font-family:'Inter',sans-serif; min-height:100vh; }
+        .topbar { background:var(--card); border-bottom:1px solid var(--border); padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }
+        .topbar-logo { font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:var(--accent); }
+        .btn-back { background:transparent; border:1px solid #333; color:#aaa; border-radius:8px; padding:5px 14px; font-size:12px; cursor:pointer; text-decoration:none; }
+        .btn-back:hover { border-color:#555; color:#eee; }
+        .page { padding:28px 24px; max-width:540px; margin:0 auto; }
+        .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:24px; }
+        .card-title { font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:#fff; margin-bottom:6px; }
+        .card-sub { font-size:13px; color:#888; margin-bottom:20px; }
+        label { display:block; font-size:12px; color:#aaa; margin-bottom:6px; }
+        input[type=text], textarea {
+            width:100%; background:#111; border:1px solid #333; border-radius:8px;
+            color:#fff; padding:10px 14px; font-size:14px; font-family:inherit;
+            transition:border-color .2s;
+        }
+        input[type=text]:focus, textarea:focus { border-color:#f59e0b; outline:none; }
+        .info-box { background:#111; border:1px solid #2a2a2a; border-radius:10px; padding:16px; margin-bottom:22px; }
+        .info-box .row { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; }
+        .info-box .row .k { color:#888; }
+        .info-box .row .v { color:#e5e5e5; font-weight:500; }
+        .valor { font-family:'Rajdhani',sans-serif; font-size:28px; font-weight:700; color:#ef4444; margin-top:4px; }
+        .upload-area {
+            border:2px dashed #333; border-radius:10px; padding:24px;
+            text-align:center; cursor:pointer; transition:border-color .2s;
+            margin-top:6px; position:relative;
+        }
+        .upload-area:hover, .upload-area.dragover { border-color:#f59e0b; }
+        .upload-area input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+        .upload-icon { font-size:28px; margin-bottom:8px; }
+        .upload-txt { font-size:13px; color:#888; }
+        .upload-hint { font-size:11px; color:#555; margin-top:4px; }
+        #preview-img { max-width:100%; border-radius:8px; margin-top:12px; display:none; }
+        #preview-name { font-size:12px; color:#22c55e; margin-top:8px; display:none; }
+        .btn-submit { width:100%; background:#f59e0b; color:#000; font-weight:700; border:none; border-radius:10px; padding:14px; font-size:15px; cursor:pointer; margin-top:20px; }
+        .btn-submit:hover { opacity:.9; }
+        .alert { border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:16px; }
+        .alert-success { background:#16a34a22; border:1px solid #22c55e55; color:#22c55e; }
+        .alert-error   { background:#dc262622; border:1px solid #ef444455; color:#ef4444; }
+        .gap { height:14px; }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <div class="topbar-logo">TERRATECH 🌐</div>
+    <a href="{{ url_for('portal.portal_os_detalhe', os_id=parcial['os_id']) }}" class="btn-back">← Voltar</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }}" style="margin:12px 24px 0;">{{ message }}</div>
+    {% endfor %}
+{% endwith %}
+
+<div class="page">
+    <div class="card">
+        <div class="card-title">🔔 Notificar Pagamento</div>
+        <div class="card-sub">Informe que realizou o pagamento e, se quiser, anexe o comprovante.</div>
+
+        <div class="info-box">
+            <div class="row"><span class="k">OS</span><span class="v">#{{ parcial['os_id'] }}</span></div>
+            <div class="row"><span class="k">Descrição</span><span class="v">{{ parcial['descricao'] or '—' }}</span></div>
+            <div class="row"><span class="k">Data</span><span class="v">{{ parcial['data'][:16] }}</span></div>
+        </div>
+        <div style="text-align:center; margin-bottom:22px;">
+            <div style="font-size:12px; color:#888;">Valor a pagar</div>
+            <div class="valor">R$ {{ "%.2f"|format(parcial['valor_cobrado'] or 0) }}</div>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+            <div>
+                <label>Observação (opcional)</label>
+                <textarea name="observacao" rows="3" placeholder="Ex: Paguei via Pix às 14h..."></textarea>
+            </div>
+            <div class="gap"></div>
+            <div>
+                <label>Comprovante (opcional)</label>
+                <div class="upload-area" id="upload-area">
+                    <input type="file" name="comprovante" id="file-input" accept="image/*,.pdf" onchange="previewFile(this)">
+                    <div class="upload-icon">📎</div>
+                    <div class="upload-txt">Clique ou arraste o comprovante aqui</div>
+                    <div class="upload-hint">JPG, PNG ou PDF · máx. 5 MB</div>
+                    <img id="preview-img" src="" alt="preview">
+                    <div id="preview-name"></div>
+                </div>
+            </div>
+            <button type="submit" class="btn-submit">✉️ Enviar Notificação</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function previewFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    document.getElementById('preview-name').textContent = '✅ ' + file.name;
+    document.getElementById('preview-name').style.display = 'block';
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = document.getElementById('preview-img');
+            img.src = e.target.result;
+            img.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+const area = document.getElementById('upload-area');
+area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+area.addEventListener('drop', e => {
+    e.preventDefault(); area.classList.remove('dragover');
+    const dt = new DataTransfer();
+    dt.items.add(e.dataTransfer.files[0]);
+    const input = document.getElementById('file-input');
+    input.files = dt.files;
+    previewFile(input);
+});
+</script>
+</body>
+</html>

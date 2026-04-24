@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Notificações de Pagamento{% endblock %}
+{% block page_title %}🔔 Notificações de Pagamento{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;">
+
+{% if not notificacoes %}
+<div style="background:#1a1a1a; border:1px dashed #2a2a2a; border-radius:12px; padding:40px; text-align:center; color:#555;">
+    Nenhuma notificação de pagamento pendente.
+</div>
+{% endif %}
+
+{% for n in notificacoes %}
+<div class="card" style="margin-bottom:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+        <div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <span style="font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:#f59e0b;">OS #{{ n['os_id'] }}</span>
+                <span style="background:#ef444422; color:#ef4444; border:1px solid #ef444444; border-radius:20px; font-size:11px; font-weight:700; padding:3px 10px;">⏳ Aguardando confirmação</span>
+            </div>
+            <div style="font-size:13px; color:#888; margin-top:4px;">
+                Cliente: <strong style="color:#ccc;">{{ n['cliente_nome'] }}</strong>
+                &nbsp;·&nbsp; Notificado em: {{ n['data'][:16] }}
+            </div>
+        </div>
+        <div style="text-align:right;">
+            <div style="font-size:12px; color:#888;">Valor da parcela</div>
+            <div style="font-family:'Rajdhani',sans-serif; font-size:24px; font-weight:700; color:#22c55e;">R$ {{ "%.2f"|format(n['valor_cobrado'] or 0) }}</div>
+        </div>
+    </div>
+
+    {% if n['parcial_desc'] %}
+    <div style="font-size:13px; color:#888; margin-bottom:10px;">
+        📦 Descrição da parcela: <span style="color:#ccc;">{{ n['parcial_desc'] }}</span>
+    </div>
+    {% endif %}
+
+    {% if n['observacao'] %}
+    <div style="background:#111; border:1px solid #2a2a2a; border-radius:8px; padding:10px 14px; font-size:13px; color:#ccc; margin-bottom:12px;">
+        💬 <em>{{ n['observacao'] }}</em>
+    </div>
+    {% endif %}
+
+    {% if n['comprovante_b64'] %}
+    <div style="margin-bottom:14px;">
+        <div style="font-size:12px; color:#888; margin-bottom:6px;">📎 Comprovante anexado:</div>
+        <img src="data:image/jpeg;base64,{{ n['comprovante_b64'] }}"
+             style="max-width:360px; max-height:280px; border-radius:8px; border:1px solid #333; cursor:pointer;"
+             onclick="this.style.maxWidth=this.style.maxWidth=='100%'?'360px':'100%'">
+        <div style="font-size:11px; color:#555; margin-top:4px;">Clique na imagem para ampliar</div>
+    </div>
+    {% else %}
+    <div style="font-size:12px; color:#555; margin-bottom:14px;">📎 Sem comprovante anexado</div>
+    {% endif %}
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <form method="POST" action="/notificacoes-pagamento/{{ n['id'] }}/confirmar"
+              onsubmit="return confirm('Confirmar pagamento e marcar parcela como paga?')">
+            <button type="submit" class="btn" style="background:#22c55e; font-size:13px;">✅ Confirmar Pagamento</button>
+        </form>
+        <a href="/itens/{{ n['os_id'] }}" class="btn btn-secondary" style="font-size:13px;">📋 Ver OS</a>
+    </div>
+</div>
+{% endfor %}
+
+</div>
+{% endblock %}
