@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, session, flash, url_for
+from flask import Blueprint, render_template, request, redirect, session, flash, url_for, jsonify
 from database import conectar
 from functools import wraps
 from datetime import datetime
+import os, base64
 
 portal_bp = Blueprint("portal", __name__)
 
@@ -68,8 +69,7 @@ def portal_dashboard():
     c.execute("""
         SELECT os.id, os.data, os.status,
                COUNT(itens.id) as total_itens,
-               SUM(CASE WHEN itens.status = 'reparado' THEN 1 ELSE 0 END) as itens_prontos,
-               SUM(CASE WHEN itens.status = 'aguardando' THEN 1 ELSE 0 END) as itens_aguardando
+               SUM(CASE WHEN itens.status = 'reparado' THEN 1 ELSE 0 END) as itens_prontos
         FROM os
         LEFT JOIN itens ON itens.os_id = os.id
         WHERE os.cliente_id = %s AND os.status = 'aberta'
@@ -78,33 +78,33 @@ def portal_dashboard():
     """, (cliente_id,))
     os_abertas = c.fetchall()
 
-    # OS aguardando pagamento (parciais não pagas)
+    # OS aguardando pagamento (parciais não pagas — inclui OS fechadas)
     c.execute("""
         SELECT os.id, os.data, os.status,
                COALESCE(SUM(op.valor_cobrado), 0) as valor_pendente,
                COUNT(op.id) as num_parciais
         FROM os
         JOIN os_parciais op ON op.os_id = os.id
-        WHERE os.cliente_id = %s AND op.pago = 0 AND os.status != 'fechada'
+        WHERE os.cliente_id = %s AND op.pago = 0
         GROUP BY os.id, os.data, os.status
         ORDER BY os.data DESC
     """, (cliente_id,))
     os_aguardando_pgto = c.fetchall()
 
-    # OS com pagamento parcial (tem parciais pagas E não pagas)
+    # OS fechadas com tudo pago
     c.execute("""
         SELECT os.id, os.data, os.status,
-               COALESCE(SUM(CASE WHEN op.pago = 1 THEN op.valor_cobrado ELSE 0 END), 0) as valor_pago,
-               COALESCE(SUM(CASE WHEN op.pago = 0 THEN op.valor_cobrado ELSE 0 END), 0) as valor_pendente
+               COALESCE(SUM(op.valor_cobrado), 0) as valor_total
         FROM os
-        JOIN os_parciais op ON op.os_id = os.id
-        WHERE os.cliente_id = %s
+        LEFT JOIN os_parciais op ON op.os_id = os.id
+        WHERE os.cliente_id = %s AND os.status = 'fechada'
+          AND NOT EXISTS (
+              SELECT 1 FROM os_parciais op2 WHERE op2.os_id = os.id AND op2.pago = 0
+          )
         GROUP BY os.id, os.data, os.status
-        HAVING SUM(CASE WHEN op.pago = 1 THEN 1 ELSE 0 END) > 0
-           AND SUM(CASE WHEN op.pago = 0 THEN 1 ELSE 0 END) > 0
         ORDER BY os.data DESC
     """, (cliente_id,))
-    os_parciais = c.fetchall()
+    os_fechadas_pagas = c.fetchall()
 
     # Total de chamados abertos
     c.execute("""
@@ -118,7 +118,7 @@ def portal_dashboard():
     return render_template("portal_dashboard.html",
                            os_abertas=os_abertas,
                            os_aguardando_pgto=os_aguardando_pgto,
-                           os_parciais=os_parciais,
+                           os_fechadas_pagas=os_fechadas_pagas,
                            chamados_abertos=chamados_abertos)
 
 
@@ -148,6 +148,91 @@ def portal_os_detalhe(os_id):
     conn.close()
     return render_template("portal_os_detalhe.html", os=os_row, itens=itens, parciais=parciais)
 
+
+
+
+# ─── NOTIFICAÇÃO DE PAGAMENTO (portal) ─────────────────────────────────────
+
+@portal_bp.route("/portal/notificar-pagamento/<int:parcial_id>", methods=["GET", "POST"])
+@portal_required
+def portal_notificar_pagamento(parcial_id):
+    cliente_id = session["portal_cliente_id"]
+    conn = conectar()
+    c = conn.cursor()
+
+    # Verifica que a parcial pertence a uma OS deste cliente
+    c.execute("""
+        SELECT op.*, os.id as os_id FROM os_parciais op
+        JOIN os ON os.id = op.os_id
+        WHERE op.id = %s AND os.cliente_id = %s
+    """, (parcial_id, cliente_id))
+    parcial = c.fetchone()
+
+    if not parcial:
+        conn.close()
+        flash("Parcela não encontrada.", "error")
+        return redirect(url_for("portal.portal_dashboard"))
+
+    if request.method == "POST":
+        observacao = request.form.get("observacao", "").strip()
+        comprovante_b64 = None
+
+        f = request.files.get("comprovante")
+        if f and f.filename:
+            dados = f.read()
+            comprovante_b64 = base64.b64encode(dados).decode()
+
+        data_notif = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+        # Salva notificação na tabela
+        c.execute("""
+            INSERT INTO notificacoes_pagamento (parcial_id, os_id, cliente_id, observacao, comprovante_b64, data)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (parcial_id, parcial["os_id"], cliente_id, observacao or None, comprovante_b64, data_notif))
+        conn.commit()
+        conn.close()
+        flash("Notificação enviada com sucesso! Aguarde a confirmação da equipe.", "success")
+        return redirect(url_for("portal.portal_os_detalhe", os_id=parcial["os_id"]))
+
+    conn.close()
+    return render_template("portal_notificar_pagamento.html", parcial=parcial)
+
+
+# ─── ADMIN: VER NOTIFICAÇÕES DE PAGAMENTO ──────────────────────────────────
+
+@portal_bp.route("/notificacoes-pagamento")
+def admin_notificacoes_pagamento():
+    if not session.get("user"):
+        return redirect("/login")
+    conn = conectar()
+    c = conn.cursor()
+    c.execute("""
+        SELECT np.*, clientes.nome as cliente_nome, op.valor_cobrado, op.descricao as parcial_desc
+        FROM notificacoes_pagamento np
+        JOIN clientes ON clientes.id = np.cliente_id
+        JOIN os_parciais op ON op.id = np.parcial_id
+        ORDER BY np.data DESC
+    """)
+    notificacoes = c.fetchall()
+    conn.close()
+    return render_template("admin_notificacoes_pagamento.html", notificacoes=notificacoes)
+
+
+@portal_bp.route("/notificacoes-pagamento/<int:notif_id>/confirmar", methods=["POST"])
+def admin_confirmar_pagamento(notif_id):
+    if not session.get("user"):
+        return redirect("/login")
+    conn = conectar()
+    c = conn.cursor()
+    c.execute("SELECT * FROM notificacoes_pagamento WHERE id=%s", (notif_id,))
+    notif = c.fetchone()
+    if notif:
+        c.execute("UPDATE os_parciais SET pago=1 WHERE id=%s", (notif["parcial_id"],))
+        c.execute("DELETE FROM notificacoes_pagamento WHERE id=%s", (notif_id,))
+        conn.commit()
+        flash("Pagamento confirmado.", "success")
+    conn.close()
+    return redirect(url_for("portal.admin_notificacoes_pagamento"))
 
 # ─── CHAMADOS ───────────────────────────────────────────────────────────────
 
