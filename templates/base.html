@@ -70,6 +70,13 @@
                class="{{ 'active' if request.endpoint in ['auth.listar_usuarios','auth.novo_usuario','auth.editar_usuario'] else '' }}">
                 <span class="nav-icon">👥</span> Usuários
             </a>
+            <a href="/notificacoes-pagamento"
+               class="{{ 'active' if request.endpoint == 'portal.admin_notificacoes_pagamento' else '' }}">
+                <span class="nav-icon">🔔</span> Notif. Pagamento
+            </a>
+            <a href="/backup" style="color:#22c55e;">
+                <span class="nav-icon">💾</span> Backup do Banco
+            </a>
             {% endif %}
 
         </nav>
